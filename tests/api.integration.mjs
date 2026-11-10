@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {newBusiness,blankMonth} from '../lib/finance.mjs';
+const base='http://127.0.0.1:5173';
+let r=await fetch(base+'/api/businesses');assert.equal(r.status,401,'anonymous database access must be rejected');
+r=await fetch(base+'/signin-with-chatgpt?return_to=/',{redirect:'manual'});
+const cookie=r.headers.get('set-cookie')?.split(';')[0];assert.ok(cookie,'local preview sign-in must set its simulated identity cookie');
+const auth={Cookie:cookie,'Content-Type':'application/json',Origin:base};
+const a=newBusiness('Integration store A','2026-06');Object.assign(a.years[2026],{openingStock:7250000,openingPayable:0});a.years[2026].months[6]={...blankMonth(),revenue:1000000,opex:100000};
+r=await fetch(base+'/api/businesses',{method:'POST',headers:auth,body:JSON.stringify(a)});let body=await r.json();assert.equal(r.status,201,JSON.stringify(body));const created=body.business;
+r=await fetch(base+'/api/businesses',{method:'POST',headers:auth,body:JSON.stringify(newBusiness('Integration store B','2026-06'))});assert.equal(r.status,201);
+r=await fetch(base+'/api/businesses',{headers:{Cookie:cookie}});body=await r.json();assert.ok(body.businesses.some(x=>x.id===created.id));assert.ok(body.businesses.some(x=>x.name==='Integration store B'));assert.ok(!body.businesses.some(x=>x.id==='foreign-business'),'another owner’s business must not be returned');
+created.years[2026].months[6].revenue=1500000;
+r=await fetch(base+'/api/businesses',{method:'PUT',headers:auth,body:JSON.stringify(created)});assert.equal(r.status,200);
+r=await fetch(base+'/api/businesses',{method:'PUT',headers:auth,body:JSON.stringify(created)});assert.equal(r.status,409,'stale revision must be rejected');
+r=await fetch(base+'/api/businesses',{method:'PUT',headers:auth,body:JSON.stringify({...created,id:'foreign-business'})});assert.equal(r.status,404,'foreign owner write must be rejected');
+r=await fetch(base+'/api/businesses',{method:'POST',headers:{...auth,Origin:'https://other.invalid'},body:JSON.stringify(a)});assert.equal(r.status,403,'foreign-origin mutation must be rejected');
+r=await fetch(base+'/api/businesses',{method:'POST',headers:auth,body:JSON.stringify({...a,name:''})});assert.equal(r.status,400);
+console.log('PASS: anonymous protection, signed-in create/read/update, multiple businesses, foreign-owner isolation, stale writes, origin and input validation. Preview data only.');

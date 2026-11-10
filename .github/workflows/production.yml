@@ -1,0 +1,31 @@
+name: Production release candidate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approved-production-candidate-${{ github.sha }}
+          path: dist/
+          retention-days: 30
+      - name: Release status
+        run: echo 'Verified build ready. Publish through the authenticated Sites deployment flow; this workflow has not deployed production.' >> "$GITHUB_STEP_SUMMARY"
