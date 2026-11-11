@@ -1,0 +1,15 @@
+{
+  "name": "revenue-monitoring-system",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "assets": { "directory": "dist/client" },
+  "vars": { "STANDALONE_AUTH": "google" },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "revenue-monitoring-system",
+    "database_id": "26a44d50-b73a-45e6-877c-f907b7fc696f",
+    "migrations_dir": "cloudflare-migrations"
+  }]
+}

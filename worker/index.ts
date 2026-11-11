@@ -1,9 +1,19 @@
 import handler from "vinext/server/fetch-handler";
+import { authenticateGoogle } from './google-auth';
 import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 
 const worker = {
-  fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
+  async fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
+    if (env.STANDALONE_AUTH === 'google') {
+      try {
+        const authenticated = await authenticateGoogle(request, env);
+        if (authenticated instanceof Response) return authenticated;
+        request = authenticated;
+      } catch {
+        return new Response('Sign-in is temporarily unavailable. Please try again.', { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      }
+    }
     let binding = ctx.props?.CONNECTORS;
     // Local preview emulates the same request-scoped capability. This branch and
     // the auxiliary service binding are absent from production builds.
